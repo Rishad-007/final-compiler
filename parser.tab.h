@@ -40,63 +40,55 @@
       know about them.  */
    enum yytokentype {
      NUMBER = 258,
-     ID = 259,
-     PLUS = 260,
-     MINUS = 261,
-     MULT = 262,
-     DIV = 263,
-     ASSIGN = 264,
-     EQ = 265,
-     LT = 266,
-     GT = 267,
-     IF = 268,
-     ELSE = 269,
-     FOR = 270,
-     PRINTF = 271,
-     LPAREN = 272,
-     RPAREN = 273,
-     LBRACE = 274,
-     RBRACE = 275,
-     SEMICOLON = 276
+     IDENTIFIER = 259,
+     IF = 260,
+     ELSE = 261,
+     FOR = 262,
+     PRINTF = 263,
+     PLUS = 264,
+     MINUS = 265,
+     MULTIPLY = 266,
+     DIVIDE = 267,
+     GT = 268,
+     LT = 269,
+     GE = 270,
+     LE = 271,
+     EQ = 272,
+     NE = 273,
+     ASSIGN = 274
    };
 #endif
 /* Tokens.  */
 #define NUMBER 258
-#define ID 259
-#define PLUS 260
-#define MINUS 261
-#define MULT 262
-#define DIV 263
-#define ASSIGN 264
-#define EQ 265
-#define LT 266
-#define GT 267
-#define IF 268
-#define ELSE 269
-#define FOR 270
-#define PRINTF 271
-#define LPAREN 272
-#define RPAREN 273
-#define LBRACE 274
-#define RBRACE 275
-#define SEMICOLON 276
+#define IDENTIFIER 259
+#define IF 260
+#define ELSE 261
+#define FOR 262
+#define PRINTF 263
+#define PLUS 264
+#define MINUS 265
+#define MULTIPLY 266
+#define DIVIDE 267
+#define GT 268
+#define LT 269
+#define GE 270
+#define LE 271
+#define EQ 272
+#define NE 273
+#define ASSIGN 274
 
 
 
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 16 "parser.y"
+#line 84 "parser.y"
 {
     int num;
-    char* id;
-    struct {
-        int value;
-        char* addr;
-    } expr;
+    char id[50];
 }
 /* Line 1529 of yacc.c.  */
-#line 100 "parser.tab.h"
+#line 92 "parser.tab.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1

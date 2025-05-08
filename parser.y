@@ -1,203 +1,269 @@
 %{
 #include "header.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-Symbol symbols[100];
-int symbol_count = 0;
-ThreeAddressCode* code_head = NULL;
-int temp_var_counter = 0;
-int label_counter = 0;
-int in_true_block = 0;  // Track if we're in the true block
-int in_else_block = 0;  // Track if we're in the else block
+#define MAX_SYMBOLS 100
+#define MAX_TAC 1000
 
-void yyerror(const char* s);
-char* new_label();
+Symbol symbolTable[MAX_SYMBOLS];
+int symbolCount = 0;
+ThreeAddressCode tacTable[MAX_TAC];
+int tacCount = 0;
+int tempCount = 0;
+
+char* newTemp() {
+    static char temp[10];
+    sprintf(temp, "t%d", tempCount++);
+    return strdup(temp);
+}
+
+Symbol* lookup(char* name) {
+    for(int i = 0; i < symbolCount; i++) {
+        if(strcmp(symbolTable[i].name, name) == 0) {
+            return &symbolTable[i];
+        }
+    }
+    return NULL;
+}
+
+void insert(char* name, int value) {
+    Symbol* s = lookup(name);
+    if(s == NULL) {
+        strcpy(symbolTable[symbolCount].name, name);
+        symbolTable[symbolCount].value = value;
+        symbolCount++;
+    } else {
+        s->value = value;
+    }
+}
+
+void emit(char* op, char* arg1, char* arg2, char* result) {
+    strcpy(tacTable[tacCount].op, op);
+    strcpy(tacTable[tacCount].arg1, arg1);
+    strcpy(tacTable[tacCount].arg2, arg2);
+    strcpy(tacTable[tacCount].result, result);
+    tacCount++;
+}
+
+void printThreeAddressCode() {
+    printf("\nThree Address Code:\n");
+    printf("------------------\n");
+    for(int i = 0; i < tacCount; i++) {
+        if(strcmp(tacTable[i].op, "label") == 0) {
+            printf("\n%s:\n", tacTable[i].result);
+        }
+        else if(strcmp(tacTable[i].op, "goto") == 0) {
+            printf("goto %s\n", tacTable[i].result);
+        }
+        else if(strcmp(tacTable[i].op, "if_true") == 0) {
+            printf("if %s goto %s\n", tacTable[i].arg1, tacTable[i].result);
+        }
+        else if(strcmp(tacTable[i].op, "if_false") == 0) {
+            printf("ifFalse %s goto %s\n", tacTable[i].arg1, tacTable[i].result);
+        }
+        else if(strcmp(tacTable[i].op, "print") == 0) {
+            printf("print %s\n", tacTable[i].arg1);
+        }
+        else if(strcmp(tacTable[i].arg2, "") == 0) {
+            if(strcmp(tacTable[i].op, "=") == 0) {
+                printf("%s := %s\n", tacTable[i].result, tacTable[i].arg1);
+            } else {
+                printf("%s := %s %s\n", tacTable[i].result, tacTable[i].op, tacTable[i].arg1);
+            }
+        }
+        else {
+            printf("%s := %s %s %s\n", tacTable[i].result, tacTable[i].arg1, tacTable[i].op, tacTable[i].arg2);
+        }
+    }
+    printf("\n");
+}
 %}
 
 %union {
     int num;
-    char* id;
-    struct {
-        int value;
-        char* addr;
-    } expr;
+    char id[50];
 }
 
 %token <num> NUMBER
-%token <id> ID
-%token PLUS MINUS MULT DIV
-%token ASSIGN EQ LT GT
+%token <id> IDENTIFIER
 %token IF ELSE FOR PRINTF
-%token LPAREN RPAREN LBRACE RBRACE SEMICOLON
+%token PLUS MINUS MULTIPLY DIVIDE
+%token GT LT GE LE EQ NE ASSIGN
 
-%type <expr> expr stmt stmt_list if_stmt for_stmt
+%type <num> expr condition
+%type <id> lvalue
 
 %%
 
-program: stmt_list
+program: statement_list
        ;
 
-stmt_list: stmt
-        | stmt_list stmt
+statement_list: statement
+             | statement_list statement
+             ;
+
+statement: assignment_stmt
+        | if_stmt
+        | for_stmt
+        | printf_stmt
         ;
 
-stmt: ID ASSIGN expr SEMICOLON {
-        set_symbol_value($1, $3.value);
-        add_three_address_code("=", $3.addr, "", $1);
+assignment_stmt: lvalue ASSIGN expr ';' {
+    insert($1, $3);
+    char val[10];
+    sprintf(val, "%d", $3);
+    emit("=", val, "", $1);
+}
+;
+
+if_stmt: IF '(' condition ')' '{' statement_list '}' ELSE '{' statement_list '}'
+       ;
+
+for_stmt: FOR '(' assignment_stmt
+    {
+        emit("label", "", "", "loop_start");
     }
-    | if_stmt
-    | for_stmt
-    | PRINTF LPAREN expr RPAREN SEMICOLON {
-        // Only print if we're in the correct block
-        if ((in_true_block && !in_else_block) || (!in_true_block && in_else_block)) {
-            printf("%d\n", $3.value);
+    condition ';' IDENTIFIER ASSIGN expr ')' '{' 
+    statement_list 
+    {
+        Symbol* s = lookup($7);  // Using $7 to reference the IDENTIFIER token
+        if(s != NULL) {
+            // Increment counter
+            int new_val = s->value + 1;
+            char val[10];
+            sprintf(val, "%d", new_val);
+            insert($7, new_val);
+            emit("=", val, "", $7);
+            
+            // Check condition for next iteration
+            char* t = newTemp();
+            emit("<", val, "5", t);
+            emit("if_true", t, "", "loop_start");
         }
-        add_three_address_code("printf", $3.addr, "", "");
+        emit("label", "", "", "loop_end");
+    }
+    '}'
+;
+
+printf_stmt: PRINTF '(' expr ')' ';' {
+    printf("Output: %d\n", $3);
+    char val[10];
+    sprintf(val, "%d", $3);
+    emit("print", val, "", "");
+}
+;
+
+condition: expr GT expr { 
+        char* t = newTemp();
+        char arg1[10], arg2[10];
+        sprintf(arg1, "%d", $1);
+        sprintf(arg2, "%d", $3);
+        emit(">", arg1, arg2, t);
+        emit("if_false", t, "", "end");
+    }
+    | expr LT expr { 
+        char* t = newTemp();
+        char arg1[10], arg2[10];
+        sprintf(arg1, "%d", $1);
+        sprintf(arg2, "%d", $3);
+        emit("<", arg1, arg2, t);
+        emit("if_false", t, "", "end");
+    }
+    | expr GE expr { 
+        char* t = newTemp();
+        char arg1[10], arg2[10];
+        sprintf(arg1, "%d", $1);
+        sprintf(arg2, "%d", $3);
+        emit(">=", arg1, arg2, t);
+        emit("if_false", t, "", "end");
+    }
+    | expr LE expr { 
+        char* t = newTemp();
+        char arg1[10], arg2[10];
+        sprintf(arg1, "%d", $1);
+        sprintf(arg2, "%d", $3);
+        emit("<=", arg1, arg2, t);
+        emit("if_false", t, "", "end");
+    }
+    | expr EQ expr { 
+        char* t = newTemp();
+        char arg1[10], arg2[10];
+        sprintf(arg1, "%d", $1);
+        sprintf(arg2, "%d", $3);
+        emit("==", arg1, arg2, t);
+        emit("if_false", t, "", "end");
+    }
+    | expr NE expr { 
+        char* t = newTemp();
+        char arg1[10], arg2[10];
+        sprintf(arg1, "%d", $1);
+        sprintf(arg2, "%d", $3);
+        emit("!=", arg1, arg2, t);
+        emit("if_false", t, "", "end");
     }
     ;
 
-if_stmt: IF LPAREN expr RPAREN {
-        char* else_label = new_label();
-        char* end_label = new_label();
-        $<expr>$.addr = strdup(else_label);  // Store else label
-        $<expr>$.value = $3.value;
-        add_three_address_code("ifFalse", $3.addr, else_label, "");  // Jump to else if false
-    } LBRACE stmt_list RBRACE ELSE {
-        char* else_label = $<expr>5.addr;  // Get stored else label
-        char* end_label = new_label();
-        add_three_address_code("goto", "", "", end_label);  // Skip else block
-        add_three_address_code("label", "", "", else_label);  // Mark start of else
-        $<expr>$.addr = strdup(end_label);  // Store end label
-    } LBRACE stmt_list RBRACE {
-        char* end_label = $<expr>9.addr;  // Get stored end label
-        add_three_address_code("label", "", "", end_label);  // Mark end of if-else
-    }
-    | IF LPAREN expr RPAREN {
-        char* false_label = new_label();
-        $<expr>$.addr = strdup(false_label);
-        $<expr>$.value = $3.value;
-        add_three_address_code("ifFalse", $3.addr, false_label, "");
-    } LBRACE stmt_list RBRACE {
-        char* false_label = $<expr>5.addr;
-        add_three_address_code("label", "", "", false_label);
-    };
-
-for_stmt: FOR LPAREN ID ASSIGN expr SEMICOLON expr SEMICOLON ID ASSIGN expr RPAREN {
-        loop_depth++;  // Enter loop
-        set_symbol_value($3, $5.value);  // Initialize loop variable
-        char* start_label = new_label();
-        char* end_label = new_label();
-        add_three_address_code("=", $5.addr, "", $3);
-        add_three_address_code("label", "", "", start_label);
-
-        // Store loop info for later use
-        $<expr>$.addr = start_label;
-        $<expr>$.value = get_symbol_value($3);  // Initial value
-        
-        // Store loop variable and increment info
-        char* loop_var = strdup($3);
-        char* inc_var = strdup($9);
-        int condition_value = $7.value;
-    } LBRACE stmt_list RBRACE {
-        char* start_label = $<expr>12.addr;
-        char* end_label = new_label();
-        
-        // Update loop variable and check condition
-        set_symbol_value($9, get_symbol_value($9) + 1);
-        add_three_address_code("=", $11.addr, "", $9);
-        
-        // Add condition check and loop back
-        add_three_address_code("ifFalse", $7.addr, end_label, "");
-        add_three_address_code("goto", "", "", start_label);
-        add_three_address_code("label", "", "", end_label);
-        
-        loop_depth--;  // Exit loop
-    }
-    ;
-
-expr: NUMBER {
-        char temp[20];
-        sprintf(temp, "%d", $1);
-        $$.addr = strdup(temp);
-        $$.value = $1;
-    }
-    | ID {
-        $$.addr = $1;
-        $$.value = get_symbol_value($1);
+expr: NUMBER { $$ = $1; }
+    | IDENTIFIER {
+        Symbol* s = lookup($1);
+        if(s != NULL) $$ = s->value;
+        else { printf("Undefined variable %s\n", $1); $$ = 0; }
     }
     | expr PLUS expr {
-        $$.addr = new_temp_var();
-        $$.value = $1.value + $3.value;
-        add_three_address_code("+", $1.addr, $3.addr, $$.addr);
+        $$ = $1 + $3;
+        char temp[10];
+        sprintf(temp, "%d", $$);
+        char arg1[10], arg2[10];
+        sprintf(arg1, "%d", $1);
+        sprintf(arg2, "%d", $3);
+        char* t = newTemp();
+        emit("+", arg1, arg2, t);
     }
     | expr MINUS expr {
-        $$.addr = new_temp_var();
-        $$.value = $1.value - $3.value;
-        add_three_address_code("-", $1.addr, $3.addr, $$.addr);
+        $$ = $1 - $3;
+        char temp[10];
+        sprintf(temp, "%d", $$);
+        char arg1[10], arg2[10];
+        sprintf(arg1, "%d", $1);
+        sprintf(arg2, "%d", $3);
+        char* t = newTemp();
+        emit("-", arg1, arg2, t);
     }
-    | expr MULT expr {
-        $$.addr = new_temp_var();
-        $$.value = $1.value * $3.value;
-        add_three_address_code("*", $1.addr, $3.addr, $$.addr);
+    | expr MULTIPLY expr {
+        $$ = $1 * $3;
+        char temp[10];
+        sprintf(temp, "%d", $$);
+        char arg1[10], arg2[10];
+        sprintf(arg1, "%d", $1);
+        sprintf(arg2, "%d", $3);
+        char* t = newTemp();
+        emit("*", arg1, arg2, t);
     }
-    | expr DIV expr {
-        $$.addr = new_temp_var();
-        $$.value = $1.value / $3.value;
-        add_three_address_code("/", $1.addr, $3.addr, $$.addr);
-    }
-    | expr LT expr {
-        $$.addr = new_temp_var();
-        $$.value = $1.value < $3.value;
-        add_three_address_code("<", $1.addr, $3.addr, $$.addr);
-    }
-    | expr GT expr {
-        $$.addr = new_temp_var();
-        $$.value = $1.value > $3.value;
-        add_three_address_code(">", $1.addr, $3.addr, $$.addr);
-    }
-    | expr EQ expr {
-        $$.addr = new_temp_var();
-        $$.value = $1.value == $3.value;
-        add_three_address_code("==", $1.addr, $3.addr, $$.addr);
-    }
-    | LPAREN expr RPAREN {
-        $$.addr = $2.addr;
-        $$.value = $2.value;
+    | expr DIVIDE expr {
+        if($3 != 0) {
+            $$ = $1 / $3;
+            char temp[10];
+            sprintf(temp, "%d", $$);
+            char arg1[10], arg2[10];
+            sprintf(arg1, "%d", $1);
+            sprintf(arg2, "%d", $3);
+            char* t = newTemp();
+            emit("/", arg1, arg2, t);
+        } else {
+            printf("Division by zero!\n");
+            $$ = 0;
+        }
     }
     ;
+
+lvalue: IDENTIFIER { strcpy($$, $1); }
+      ;
 
 %%
 
 void yyerror(const char* s) {
-    fprintf(stderr, "Error: %s\n", s);
-}
-
-char* new_temp_var() {
-    char* temp = malloc(10);
-    sprintf(temp, "t%d", temp_var_counter++);
-    return temp;
-}
-
-char* new_label() {
-    char* label = malloc(10);
-    sprintf(label, "L%d", label_counter++);
-    return label;
-}
-
-void add_three_address_code(char* op, char* arg1, char* arg2, char* result) {
-    ThreeAddressCode* code = malloc(sizeof(ThreeAddressCode));
-    code->op = strdup(op);
-    code->arg1 = strdup(arg1);
-    code->arg2 = strdup(arg2);
-    code->result = strdup(result);
-    code->next = NULL;
-
-    if (code_head == NULL) {
-        code_head = code;
-    } else {
-        ThreeAddressCode* current = code_head;
-        while (current->next != NULL) {
-            current = current->next;
-        }
-        current->next = code;
-    }
+    fprintf(stderr, "Parse error: %s\n", s);
+    exit(1);
 }

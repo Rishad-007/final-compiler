@@ -5,46 +5,31 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Structure for three address code
-typedef struct ThreeAddressCode {
-    char* op;
-    char* arg1;
-    char* arg2;
-    char* result;
-    struct ThreeAddressCode* next;
-} ThreeAddressCode;
-
-// Structure for symbol table entry
+// Symbol table structure
 typedef struct {
-    char* name;
+    char name[50];
     int value;
 } Symbol;
 
-// Structure for expression
-struct {
-    int value;
-    char* addr;
-    int condition;  // For tracking if-else conditions
-} expr;
+// Three address code structure
+typedef struct {
+    char op[10];
+    char arg1[50];
+    char arg2[50];
+    char result[50];
+} ThreeAddressCode;
 
-// Global variables
-extern FILE* yyin;
 extern int yylex();
 extern int yyparse();
+extern FILE* yyin;
 extern void yyerror(const char* s);
-extern Symbol symbols[100];
-extern int symbol_count;
-extern ThreeAddressCode* code_head;
-extern int temp_var_counter;
-extern int if_flag;
-extern int loop_depth;  // Added extern declaration for loop_depth
 
-// Function declarations
-char* new_temp_var();
-char* new_label();
-void add_three_address_code(char* op, char* arg1, char* arg2, char* result);
-void print_three_address_code();
-int get_symbol_value(char* name);
-void set_symbol_value(char* name, int value);
+// Symbol table functions
+Symbol* lookup(char* name);
+void insert(char* name, int value);
+
+// Three address code functions
+void emit(char* op, char* arg1, char* arg2, char* result);
+void printThreeAddressCode();
 
 #endif

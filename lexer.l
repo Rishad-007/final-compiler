@@ -4,31 +4,32 @@
 %}
 
 %%
-[ \t\n]         ; /* Skip whitespace */
+[ \t\n]         ; // Skip whitespace
 "if"            { return IF; }
 "else"          { return ELSE; }
 "for"           { return FOR; }
 "Printf"        { return PRINTF; }
+[0-9]+          { yylval.num = atoi(yytext); return NUMBER; }
+[a-zA-Z][a-zA-Z0-9]* { strcpy(yylval.id, yytext); return IDENTIFIER; }
+"="             { return ASSIGN; }
 "+"             { return PLUS; }
 "-"             { return MINUS; }
-"*"             { return MULT; }
-"/"             { return DIV; }
-"="             { return ASSIGN; }
-"=="            { return EQ; }
-"<"             { return LT; }
+"*"             { return MULTIPLY; }
+"/"             { return DIVIDE; }
 ">"             { return GT; }
-"{"             { return LBRACE; }
-"}"             { return RBRACE; }
-"("             { return LPAREN; }
-")"             { return RPAREN; }
-";"             { return SEMICOLON; }
-[0-9]+          { yylval.num = atoi(yytext); return NUMBER; }
-[a-zA-Z][a-zA-Z0-9]* { yylval.id = strdup(yytext); return ID; }
-.               { printf("Unexpected character: %s\n", yytext); }
-
+"<"             { return LT; }
+">="            { return GE; }
+"<="            { return LE; }
+"=="            { return EQ; }
+"!="            { return NE; }
+"{"             { return '{'; }
+"}"             { return '}'; }
+"("             { return '('; }
+")"             { return ')'; }
+";"             { return ';'; }
+.               { printf("Unknown character\n"); }
 %%
 
-
-int yywrap() {
+int yywrap(void) {
     return 1;
 }

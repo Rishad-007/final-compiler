@@ -1,6 +1,6 @@
-# Simple Compiler with Flex and Bison
+# Mini Compiler Project
 
-A basic compiler implementation using Flex (lexical analyzer) and Bison (parser) that can handle arithmetic operations, if-else statements, and for loops. The compiler reads input from a file and generates three-address code as an intermediate representation.
+A simple compiler implementation that can evaluate arithmetic expressions, handle if-else statements, and process for loops. The compiler generates three-address code as an intermediate representation.
 
 ## Author
 
@@ -8,180 +8,125 @@ A basic compiler implementation using Flex (lexical analyzer) and Bison (parser)
 Department of Computer Science and Engineering  
 Begum Rokeya University, Rangpur (BRUR)
 
-Contact:
-
+### Contact
 - Email: rishad.nur007@gmail.com
 - Facebook: [www.facebook.com/rishad.nur](https://www.facebook.com/rishad.nur)
 
-## License and Usage Rights
-
-This project is completely free and open for anyone to use, modify, and redistribute under the MIT License. You are welcome to:
-
-- Use this code in your projects (commercial or non-commercial)
-- Modify and adapt the code to your needs
-- Share and distribute the code
-- Use it for educational purposes
-
-The only requirement is to include the copyright notice and the MIT license text in any substantial portions of the code that you use.
-
 ## Features
 
-- Lexical analysis using Flex
-- Parsing using Bison
-- Support for:
-  - Arithmetic operations (+, -, \*, /)
-  - If-else statements
-  - For loops
-  - Variable assignments
-  - Comparison operators (<, >, ==)
-- Three-address code generation
-- Symbol table management
+1. **Arithmetic Expression Evaluation**
+   - Supports basic arithmetic operations (+, -, *, /)
+   - Evaluates expressions and prints results
+   - Generates corresponding three-address code
 
-## Prerequisites
+2. **Control Structures**
+   - If-else statements with condition evaluation
+   - For loops with counter-based iteration
+   - Nested control structures support
 
-To build and run this compiler, you need:
-
-- Flex (The Fast Lexical Analyzer)
-- Bison (GNU Parser Generator)
-- GCC (GNU Compiler Collection)
-- Make (Optional, but recommended)
-
-On macOS, you can install these using Homebrew:
-
-```bash
-brew install flex bison gcc make
-```
-
-On Ubuntu/Debian:
-
-```bash
-sudo apt-get install flex bison gcc make
-```
+3. **Output Generation**
+   - Printf function support for output
+   - Three-address code generation
+   - Intermediate code representation
 
 ## Project Structure
 
 ```
-.
-├── README.md
-├── header.h        # Common header file with data structures and declarations
-├── lexer.l         # Flex lexical analyzer specification
-├── parser.y        # Bison parser specification
-├── main.c         # Main program file
-└── input.txt      # Sample input file
+compilerProject/
+├── header.h        # Header file with data structures and declarations
+├── lexer.l         # Flex (lexical analyzer) source file
+├── parser.y        # Bison (parser) source file
+├── main.c          # Main program file
+└── input.txt       # Sample input file for testing
 ```
 
-## Building the Compiler
+## Prerequisites
 
-1. Generate the parser source files:
+- GCC (GNU Compiler Collection)
+- Flex (Fast Lexical Analyzer)
+- Bison (Parser Generator)
 
+## Building the Project
+
+1. Generate the parser and header files:
    ```bash
    bison -d parser.y
    ```
 
-2. Generate the lexer source files:
-
+2. Generate the lexical analyzer:
    ```bash
    flex lexer.l
    ```
 
 3. Compile all source files:
    ```bash
-   gcc lex.yy.c parser.tab.c main.c -o compiler
+   gcc -o compiler main.c parser.tab.c lex.yy.c -ly -ll
    ```
 
 ## Usage
 
-1. Create an input file (`input.txt`) with your code. Example:
-
-   ```
-   x = 5;
-   y = 10;
-   z = x + y * 2;
-
-   if (z > 20) {
-       result = z - 5;
-   } else {
-       result = z + 5;
-   }
-
-   for (i = 0; i < 5; i = i + 1) {
-       sum = sum + i;
-   }
-   ```
-
+1. Create an input file with your code (e.g., input.txt)
 2. Run the compiler:
    ```bash
-   ./compiler
+   ./compiler input.txt
    ```
 
-The compiler will read the input file and generate three-address code as output.
+## Input File Format
 
-## Three-Address Code Generation
+The compiler accepts input files with the following syntax:
 
-The compiler generates three-address code as an intermediate representation. Examples of generated code:
+```c
+// Arithmetic operations
+x = 5;
+y = 10;
+Printf(x + y);
 
+// If-else statements
+if (x < y) {
+    z = x * 2;
+    Printf(z);
+} else {
+    z = y * 2;
+    Printf(z);
+}
+
+// For loops
+for (i = 0; i < 3; i = i + 1) {
+    Printf(i);
+}
 ```
-t0 = y * 2
-t1 = x + t0
-z = t1
-t2 = z > 20
-if t2 == false goto L0
-t3 = z - 5
-result = t3
-goto L1
-L0:
-t4 = z + 5
-result = t4
-L1:
-```
 
-## Features Explanation
+## Output Format
 
-1. **Arithmetic Operations**
+The compiler generates two types of output:
 
-   - Supports basic arithmetic operations (+, -, \*, /)
-   - Handles operator precedence correctly
-   - Generates temporary variables for intermediate results
+1. **Code Output**: Results of executed statements
+   ```
+   Code output:
+   ----------------
+   Output: 15
+   Output: 10
+   ...
+   ```
 
-2. **Control Structures**
+2. **Three Address Code**: Intermediate representation
+   ```
+   Three Address Code:
+   ------------------
+   x := 5
+   y := 10
+   t0 := 5 + 10
+   ...
+   ```
 
-   - If-else statements with proper branching
-   - For loops with initialization, condition, and increment
-   - Proper label generation for control flow
+## Error Handling
 
-3. **Symbol Table**
-   - Maintains a symbol table for variables
-   - Tracks variable assignments and values
-   - Supports variable lookup and modification
-
-## Limitations
-
-- No support for functions or procedures
-- Limited to integer arithmetic
-- No type checking
-- No optimization of the generated code
-- No error recovery mechanism
+The compiler includes basic error handling for:
+- Undefined variables
+- Division by zero
+- Syntax errors
+- Lexical errors
 
 ## Contributing
 
-Feel free to contribute to this project by:
-
-1. Forking the repository
-2. Creating a feature branch
-3. Committing your changes
-4. Creating a pull request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Future Improvements
-
-- Add support for floating-point numbers
-- Implement function declarations and calls
-- Add type checking and error recovery
-- Optimize the generated three-address code
-- Add support for arrays and pointers
-- Implement a more sophisticated symbol table
-- Add support for string operations
-- Implement constant folding and propagation
+Feel free to submit issues and enhancement requests.
