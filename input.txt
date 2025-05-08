@@ -1,0 +1,6 @@
+x = 2;
+if(x > 3) {
+    Printf(10);
+} else {
+    Printf(20);
+}
