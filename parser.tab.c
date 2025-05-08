@@ -114,6 +114,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 #define MAX_SYMBOLS 100
 #define MAX_TAC 1000
@@ -123,11 +124,21 @@ int symbolCount = 0;
 ThreeAddressCode tacTable[MAX_TAC];
 int tacCount = 0;
 int tempCount = 0;
+extern ErrorInfo error_info;  // Changed to extern declaration
 
 char* newTemp() {
     static char temp[10];
     sprintf(temp, "t%d", tempCount++);
     return strdup(temp);
+}
+
+void report_error(const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    vsnprintf(error_info.last_error, sizeof(error_info.last_error), format, args);
+    va_end(args);
+    error_info.error_count++;
+    fprintf(stderr, "Error at line %d: %s\n", yylineno, error_info.last_error);
 }
 
 Symbol* lookup(char* name) {
@@ -142,12 +153,23 @@ Symbol* lookup(char* name) {
 void insert(char* name, int value) {
     Symbol* s = lookup(name);
     if(s == NULL) {
+        if(symbolCount >= MAX_SYMBOLS) {
+            report_error("Symbol table overflow");
+            return;
+        }
         strcpy(symbolTable[symbolCount].name, name);
         symbolTable[symbolCount].value = value;
+        symbolTable[symbolCount].initialized = 1;
         symbolCount++;
     } else {
         s->value = value;
+        s->initialized = 1;
     }
+}
+
+int is_initialized(char* name) {
+    Symbol* s = lookup(name);
+    return (s != NULL && s->initialized);
 }
 
 void emit(char* op, char* arg1, char* arg2, char* result) {
@@ -212,13 +234,13 @@ void printThreeAddressCode() {
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 84 "parser.y"
+#line 106 "parser.y"
 {
     int num;
     char id[50];
 }
 /* Line 193 of yacc.c.  */
-#line 222 "parser.tab.c"
+#line 244 "parser.tab.c"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -231,7 +253,7 @@ typedef union YYSTYPE
 
 
 /* Line 216 of yacc.c.  */
-#line 235 "parser.tab.c"
+#line 257 "parser.tab.c"
 
 #ifdef short
 # undef short
@@ -526,9 +548,9 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   100,   100,   103,   104,   107,   108,   109,   110,   113,
-     121,   125,   130,   124,   150,   158,   166,   174,   182,   190,
-     198,   208,   209,   214,   224,   234,   244,   261
+       0,   122,   122,   125,   126,   129,   130,   131,   132,   135,
+     143,   147,   152,   146,   172,   180,   188,   196,   204,   212,
+     220,   230,   231,   243,   252,   261,   270,   286
 };
 #endif
 
@@ -1470,7 +1492,7 @@ yyreduce:
   switch (yyn)
     {
         case 9:
-#line 113 "parser.y"
+#line 135 "parser.y"
     {
     insert((yyvsp[(1) - (4)].id), (yyvsp[(3) - (4)].num));
     char val[10];
@@ -1480,14 +1502,14 @@ yyreduce:
     break;
 
   case 11:
-#line 125 "parser.y"
+#line 147 "parser.y"
     {
         emit("label", "", "", "loop_start");
     ;}
     break;
 
   case 12:
-#line 130 "parser.y"
+#line 152 "parser.y"
     {
         Symbol* s = lookup((yyvsp[(7) - (12)].id));  // Using $7 to reference the IDENTIFIER token
         if(s != NULL) {
@@ -1508,7 +1530,7 @@ yyreduce:
     break;
 
   case 14:
-#line 150 "parser.y"
+#line 172 "parser.y"
     {
     printf("Output: %d\n", (yyvsp[(3) - (5)].num));
     char val[10];
@@ -1518,7 +1540,7 @@ yyreduce:
     break;
 
   case 15:
-#line 158 "parser.y"
+#line 180 "parser.y"
     { 
         char* t = newTemp();
         char arg1[10], arg2[10];
@@ -1530,7 +1552,7 @@ yyreduce:
     break;
 
   case 16:
-#line 166 "parser.y"
+#line 188 "parser.y"
     { 
         char* t = newTemp();
         char arg1[10], arg2[10];
@@ -1542,7 +1564,7 @@ yyreduce:
     break;
 
   case 17:
-#line 174 "parser.y"
+#line 196 "parser.y"
     { 
         char* t = newTemp();
         char arg1[10], arg2[10];
@@ -1554,7 +1576,7 @@ yyreduce:
     break;
 
   case 18:
-#line 182 "parser.y"
+#line 204 "parser.y"
     { 
         char* t = newTemp();
         char arg1[10], arg2[10];
@@ -1566,7 +1588,7 @@ yyreduce:
     break;
 
   case 19:
-#line 190 "parser.y"
+#line 212 "parser.y"
     { 
         char* t = newTemp();
         char arg1[10], arg2[10];
@@ -1578,7 +1600,7 @@ yyreduce:
     break;
 
   case 20:
-#line 198 "parser.y"
+#line 220 "parser.y"
     { 
         char* t = newTemp();
         char arg1[10], arg2[10];
@@ -1590,26 +1612,32 @@ yyreduce:
     break;
 
   case 21:
-#line 208 "parser.y"
+#line 230 "parser.y"
     { (yyval.num) = (yyvsp[(1) - (1)].num); ;}
     break;
 
   case 22:
-#line 209 "parser.y"
+#line 231 "parser.y"
     {
         Symbol* s = lookup((yyvsp[(1) - (1)].id));
-        if(s != NULL) (yyval.num) = s->value;
-        else { printf("Undefined variable %s\n", (yyvsp[(1) - (1)].id)); (yyval.num) = 0; }
+        if(s == NULL) {
+            report_error("Undefined variable '%s'", (yyvsp[(1) - (1)].id));
+            (yyval.num) = 0;
+        } else if(!s->initialized) {
+            report_error("Variable '%s' used before initialization", (yyvsp[(1) - (1)].id));
+            (yyval.num) = 0;
+        } else {
+            (yyval.num) = s->value;
+        }
     ;}
     break;
 
   case 23:
-#line 214 "parser.y"
+#line 243 "parser.y"
     {
         (yyval.num) = (yyvsp[(1) - (3)].num) + (yyvsp[(3) - (3)].num);
-        char temp[10];
+        char temp[10], arg1[10], arg2[10];
         sprintf(temp, "%d", (yyval.num));
-        char arg1[10], arg2[10];
         sprintf(arg1, "%d", (yyvsp[(1) - (3)].num));
         sprintf(arg2, "%d", (yyvsp[(3) - (3)].num));
         char* t = newTemp();
@@ -1618,12 +1646,11 @@ yyreduce:
     break;
 
   case 24:
-#line 224 "parser.y"
+#line 252 "parser.y"
     {
         (yyval.num) = (yyvsp[(1) - (3)].num) - (yyvsp[(3) - (3)].num);
-        char temp[10];
+        char temp[10], arg1[10], arg2[10];
         sprintf(temp, "%d", (yyval.num));
-        char arg1[10], arg2[10];
         sprintf(arg1, "%d", (yyvsp[(1) - (3)].num));
         sprintf(arg2, "%d", (yyvsp[(3) - (3)].num));
         char* t = newTemp();
@@ -1632,12 +1659,11 @@ yyreduce:
     break;
 
   case 25:
-#line 234 "parser.y"
+#line 261 "parser.y"
     {
         (yyval.num) = (yyvsp[(1) - (3)].num) * (yyvsp[(3) - (3)].num);
-        char temp[10];
+        char temp[10], arg1[10], arg2[10];
         sprintf(temp, "%d", (yyval.num));
-        char arg1[10], arg2[10];
         sprintf(arg1, "%d", (yyvsp[(1) - (3)].num));
         sprintf(arg2, "%d", (yyvsp[(3) - (3)].num));
         char* t = newTemp();
@@ -1646,32 +1672,31 @@ yyreduce:
     break;
 
   case 26:
-#line 244 "parser.y"
+#line 270 "parser.y"
     {
-        if((yyvsp[(3) - (3)].num) != 0) {
+        if((yyvsp[(3) - (3)].num) == 0) {
+            report_error("Division by zero");
+            (yyval.num) = 0;
+        } else {
             (yyval.num) = (yyvsp[(1) - (3)].num) / (yyvsp[(3) - (3)].num);
-            char temp[10];
+            char temp[10], arg1[10], arg2[10];
             sprintf(temp, "%d", (yyval.num));
-            char arg1[10], arg2[10];
             sprintf(arg1, "%d", (yyvsp[(1) - (3)].num));
             sprintf(arg2, "%d", (yyvsp[(3) - (3)].num));
             char* t = newTemp();
             emit("/", arg1, arg2, t);
-        } else {
-            printf("Division by zero!\n");
-            (yyval.num) = 0;
         }
     ;}
     break;
 
   case 27:
-#line 261 "parser.y"
+#line 286 "parser.y"
     { strcpy((yyval.id), (yyvsp[(1) - (1)].id)); ;}
     break;
 
 
 /* Line 1267 of yacc.c.  */
-#line 1675 "parser.tab.c"
+#line 1700 "parser.tab.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -1885,10 +1910,9 @@ yyreturn:
 }
 
 
-#line 264 "parser.y"
+#line 289 "parser.y"
 
 
 void yyerror(const char* s) {
-    fprintf(stderr, "Parse error: %s\n", s);
-    exit(1);
+    report_error("Syntax error: %s", s);
 }

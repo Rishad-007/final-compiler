@@ -10,7 +10,7 @@ if (x < y) {
     Printf(z);
 }
 
-for (i = 1; i < 5; i = i + 1) {
+for (i = 2; i < 10; i = i + 1) {
     Printf(i);
 }
 Printf(i);

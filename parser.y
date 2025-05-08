@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 #define MAX_SYMBOLS 100
 #define MAX_TAC 1000
@@ -12,11 +13,21 @@ int symbolCount = 0;
 ThreeAddressCode tacTable[MAX_TAC];
 int tacCount = 0;
 int tempCount = 0;
+extern ErrorInfo error_info;  // Changed to extern declaration
 
 char* newTemp() {
     static char temp[10];
     sprintf(temp, "t%d", tempCount++);
     return strdup(temp);
+}
+
+void report_error(const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    vsnprintf(error_info.last_error, sizeof(error_info.last_error), format, args);
+    va_end(args);
+    error_info.error_count++;
+    fprintf(stderr, "Error at line %d: %s\n", yylineno, error_info.last_error);
 }
 
 Symbol* lookup(char* name) {
@@ -31,12 +42,23 @@ Symbol* lookup(char* name) {
 void insert(char* name, int value) {
     Symbol* s = lookup(name);
     if(s == NULL) {
+        if(symbolCount >= MAX_SYMBOLS) {
+            report_error("Symbol table overflow");
+            return;
+        }
         strcpy(symbolTable[symbolCount].name, name);
         symbolTable[symbolCount].value = value;
+        symbolTable[symbolCount].initialized = 1;
         symbolCount++;
     } else {
         s->value = value;
+        s->initialized = 1;
     }
+}
+
+int is_initialized(char* name) {
+    Symbol* s = lookup(name);
+    return (s != NULL && s->initialized);
 }
 
 void emit(char* op, char* arg1, char* arg2, char* result) {
@@ -208,14 +230,20 @@ condition: expr GT expr {
 expr: NUMBER { $$ = $1; }
     | IDENTIFIER {
         Symbol* s = lookup($1);
-        if(s != NULL) $$ = s->value;
-        else { printf("Undefined variable %s\n", $1); $$ = 0; }
+        if(s == NULL) {
+            report_error("Undefined variable '%s'", $1);
+            $$ = 0;
+        } else if(!s->initialized) {
+            report_error("Variable '%s' used before initialization", $1);
+            $$ = 0;
+        } else {
+            $$ = s->value;
+        }
     }
     | expr PLUS expr {
         $$ = $1 + $3;
-        char temp[10];
+        char temp[10], arg1[10], arg2[10];
         sprintf(temp, "%d", $$);
-        char arg1[10], arg2[10];
         sprintf(arg1, "%d", $1);
         sprintf(arg2, "%d", $3);
         char* t = newTemp();
@@ -223,9 +251,8 @@ expr: NUMBER { $$ = $1; }
     }
     | expr MINUS expr {
         $$ = $1 - $3;
-        char temp[10];
+        char temp[10], arg1[10], arg2[10];
         sprintf(temp, "%d", $$);
-        char arg1[10], arg2[10];
         sprintf(arg1, "%d", $1);
         sprintf(arg2, "%d", $3);
         char* t = newTemp();
@@ -233,27 +260,25 @@ expr: NUMBER { $$ = $1; }
     }
     | expr MULTIPLY expr {
         $$ = $1 * $3;
-        char temp[10];
+        char temp[10], arg1[10], arg2[10];
         sprintf(temp, "%d", $$);
-        char arg1[10], arg2[10];
         sprintf(arg1, "%d", $1);
         sprintf(arg2, "%d", $3);
         char* t = newTemp();
         emit("*", arg1, arg2, t);
     }
     | expr DIVIDE expr {
-        if($3 != 0) {
+        if($3 == 0) {
+            report_error("Division by zero");
+            $$ = 0;
+        } else {
             $$ = $1 / $3;
-            char temp[10];
+            char temp[10], arg1[10], arg2[10];
             sprintf(temp, "%d", $$);
-            char arg1[10], arg2[10];
             sprintf(arg1, "%d", $1);
             sprintf(arg2, "%d", $3);
             char* t = newTemp();
             emit("/", arg1, arg2, t);
-        } else {
-            printf("Division by zero!\n");
-            $$ = 0;
         }
     }
     ;
@@ -264,6 +289,5 @@ lvalue: IDENTIFIER { strcpy($$, $1); }
 %%
 
 void yyerror(const char* s) {
-    fprintf(stderr, "Parse error: %s\n", s);
-    exit(1);
+    report_error("Syntax error: %s", s);
 }
